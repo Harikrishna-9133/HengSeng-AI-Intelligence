@@ -46,6 +46,40 @@ data/processed/  Locally generated analysis datasets (not committed)
 reports/         Assessment results and limitations
 ```
 
+## Dashboard screenshots
+
+The following screenshots were captured from the Streamlit dashboard during the assessment review. They show the interface and sample outputs; the underlying data is not bundled in this repository.
+
+### Market overview
+
+![HengSeng AI Intelligence overview](screenshots/overview.webp)
+
+### Stock predictions and technical analysis
+
+![Next-session stock predictions](screenshots/stock-predictions.webp)
+
+![Individual stock support and resistance analysis](screenshots/support-resistance.webp)
+
+### Sentiment analysis
+
+![Social-only sentiment ranking from LIHKG and Telegram](screenshots/sentiment-social-ranking.webp)
+
+![Combined social and Exa news sentiment ranking](screenshots/sentiment-combined-ranking.webp)
+
+### Model evaluation
+
+![Model comparison and evaluation summary](screenshots/model-evaluation.webp)
+
+![Actual versus predicted next-session returns](screenshots/actual-vs-predicted.webp)
+
+### Data coverage and historical prices
+
+![Social and news source coverage](screenshots/data-coverage.webp)
+
+![Full-window ticker coverage and latest-session event counts](screenshots/data-coverage-stock-details.webp)
+
+![Historical stock prices](screenshots/historical-prices.webp)
+
 ## Setup
 
 Python 3.11 is recommended.
