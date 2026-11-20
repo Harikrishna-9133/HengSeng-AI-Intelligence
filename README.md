@@ -167,7 +167,7 @@ streamlit run app/dashboard.py
 - The recorded common test set contains five observations. In that comparison, the zero-return baseline has lower MAE and RMSE than both Ridge variants. Directional accuracy for a constant zero-return prediction is not informative.
 - Social coverage is uneven across tickers. Missing social observations are not neutral sentiment.
 - LIHKG and Telegram source schemas do not consistently provide all requested engagement fields. The assessment run captured available LIHKG likes/dislikes and Telegram views/reactions, but repost counts and author follower counts are not fully populated.
-- The ticker-level sentiment ranking in the dashboard combines LIHKG, Telegram, and Exa news signals; source-level counts are also displayed. It should not be interpreted as a social-only ranking.
+- The dashboard now shows a separate social-only ranking from LIHKG and Telegram, plus a separate combined ranking that includes Exa news. The social-only view indicates observed discussion coverage, not the full market opinion.
 - The current pipeline classifies sentiment and derives market direction, but does not reliably extract explicit long/short position statements from every social post.
 - XLM-RoBERTa is a general multilingual sentiment model, not a financial-domain model fine-tuned specifically for Hong Kong Cantonese. Automated classifications need human review.
 - Support/resistance values are historical reference levels, not guarantees.
