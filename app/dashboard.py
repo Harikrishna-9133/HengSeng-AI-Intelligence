@@ -1262,24 +1262,111 @@ elif page == "Data Coverage":
         use_container_width=True
     )
 
-    st.subheader("Stock-wise Sentiment Coverage")
+    st.subheader("Stock-wise Coverage — Full Collection Window")
+
+    asset_coverage = pd.DataFrame({
+        "ticker": list(ASSET_NAMES.keys()),
+    })
+
+    def source_counts(frame, output_column):
+        if frame.empty or "ticker" not in frame.columns:
+            return pd.DataFrame({
+                "ticker": list(ASSET_NAMES.keys()),
+                output_column: [0] * len(ASSET_NAMES),
+            })
+        counts = (
+            frame.groupby("ticker")
+            .size()
+            .rename(output_column)
+            .reset_index()
+        )
+        return asset_coverage[["ticker"]].merge(
+            counts, on="ticker", how="left"
+        ).fillna({output_column: 0})
+
+    for source_frame, output_column in [
+        (lihkg, "LIHKG Records"),
+        (telegram, "Telegram Posts"),
+        (exa, "Exa News Articles"),
+    ]:
+        counts = source_counts(source_frame, output_column)
+        asset_coverage = asset_coverage.merge(
+            counts, on="ticker", how="left"
+        )
+
+    record_columns = [
+        "LIHKG Records",
+        "Telegram Posts",
+        "Exa News Articles",
+    ]
+    for column in record_columns:
+        if column not in asset_coverage.columns:
+            asset_coverage[column] = 0
+        asset_coverage[column] = (
+            pd.to_numeric(asset_coverage[column], errors="coerce")
+            .fillna(0)
+            .astype(int)
+        )
+
+    asset_coverage["Social Records"] = (
+        asset_coverage["LIHKG Records"]
+        + asset_coverage["Telegram Posts"]
+    )
+    asset_coverage["All Sentiment Records"] = (
+        asset_coverage["Social Records"]
+        + asset_coverage["Exa News Articles"]
+    )
+    asset_coverage["Company"] = asset_coverage["ticker"].map(ASSET_NAMES)
+    asset_coverage = asset_coverage.rename(columns={"ticker": "Ticker"})
+    asset_coverage = asset_coverage[
+        [
+            "Ticker",
+            "Company",
+            "LIHKG Records",
+            "Telegram Posts",
+            "Social Records",
+            "Exa News Articles",
+            "All Sentiment Records",
+        ]
+    ]
+
+    st.dataframe(
+        asset_coverage,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    st.caption(
+        "These are source-record counts across the collected analysis window, "
+        "not just the latest trading day. A zero means no matching records "
+        "were collected for that ticker/source."
+    )
+
+    st.divider()
+    st.subheader("Latest Trading Session Sentiment Events")
 
     if not latest_prices.empty:
-        coverage_columns = [
+        latest_coverage_columns = [
             "ticker",
             "lihkg_count",
             "telegram_count",
             "exa_count",
             "total_sentiment_events",
         ]
-
-        coverage_columns = [
-            c for c in coverage_columns
-            if c in latest_prices.columns
+        latest_coverage_columns = [
+            column for column in latest_coverage_columns
+            if column in latest_prices.columns
         ]
-
+        latest_coverage = latest_prices[latest_coverage_columns].copy()
+        latest_coverage = latest_coverage.rename(columns={
+            "ticker": "Ticker",
+            "lihkg_count": "LIHKG Events",
+            "telegram_count": "Telegram Events",
+            "exa_count": "Exa News Events",
+            "total_sentiment_events": "Total Events",
+        })
         st.dataframe(
-            latest_prices[coverage_columns],
+            latest_coverage,
             use_container_width=True,
             hide_index=True,
         )
