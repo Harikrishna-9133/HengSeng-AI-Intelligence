@@ -538,32 +538,64 @@ elif page == "Stock Predictions":
                 suffixes=("", "_levels")
             )
 
-            # Display prediction and technical levels
+            # Display a compact, readable summary table. Detailed pivot
+            # levels remain available in the selected-stock analysis below.
             st.subheader("Stock Prediction & Technical Levels")
 
             display_columns = [
                 "ticker",
                 "company",
+                "current_price",
                 "predicted_next_close",
                 "Predicted Return (%)",
                 "predicted_direction",
                 "support_20d",
                 "resistance_20d",
-                "pivot",
-                "support_1",
-                "resistance_1",
                 "price_position",
             ]
-
             display_columns = [
                 col for col in display_columns
                 if col in selected.columns
             ]
 
+            table = selected[display_columns].copy()
+            table = table.rename(columns={
+                "ticker": "Ticker",
+                "company": "Company",
+                "current_price": "Current Price (HKD)",
+                "predicted_next_close": "Predicted Next Close (HKD)",
+                "Predicted Return (%)": "Predicted Return",
+                "predicted_direction": "Direction",
+                "support_20d": "20-Day Support (HKD)",
+                "resistance_20d": "20-Day Resistance (HKD)",
+                "price_position": "Price Position",
+            })
+
+            price_columns = [
+                "Current Price (HKD)",
+                "Predicted Next Close (HKD)",
+                "20-Day Support (HKD)",
+                "20-Day Resistance (HKD)",
+            ]
+            for column in price_columns:
+                if column in table.columns:
+                    table[column] = pd.to_numeric(
+                        table[column], errors="coerce"
+                    ).map(
+                        lambda value: f"{value:,.2f}" if pd.notna(value) else "N/A"
+                    )
+
+            if "Predicted Return" in table.columns:
+                table["Predicted Return"] = pd.to_numeric(
+                    table["Predicted Return"], errors="coerce"
+                ).map(
+                    lambda value: f"{value:+.2f}%" if pd.notna(value) else "N/A"
+                )
+
             st.dataframe(
-                selected[display_columns],
+                table,
                 use_container_width=True,
-                hide_index=True
+                hide_index=True,
             )
 
             st.divider()
