@@ -1,0 +1,4 @@
+Model,Training observations,Test observations,MAE,RMSE,Directional accuracy (%)
+Price-only Ridge,1220,5,0.02502067174056874,0.025888185975714788,40.0
+Price + Sentiment Ridge,13,5,0.023824113752107332,0.029092342129869015,40.0
+Naive Zero-Return Baseline,0,5,0.02298335374395888,0.02447099371372466,0.0
