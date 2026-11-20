@@ -77,7 +77,7 @@ These levels are historical technical references. They are not guaranteed market
 - The collected social sample does not provide meaningful LIHKG/Telegram coverage for all five tickers.
 - Available engagement fields vary by actor schema. Telegram views/reactions and LIHKG likes/dislikes were captured where present; author follower counts and repost counts were not fully populated.
 - The current pipeline produces sentiment and sentiment-derived direction, but does not robustly extract explicit long/short position statements from posts.
-- The dashboard's overall stock ranking combines the two social sources with Exa news; it is not a pure social-only rank.
+- The dashboard provides a social-only ranking from LIHKG and Telegram as well as a separate combined ranking that includes Exa news.
 - The fair model evaluation's common test set is only five observations; a larger, longer, walk-forward evaluation is needed before drawing predictive conclusions.
 
 ## Reproducibility and security
