@@ -1,31 +1,45 @@
-
 import json
-import re
 from pathlib import Path
 
 import pandas as pd
 from transformers import pipeline
 
-INPUT_FILE = Path("data/raw/telegram_posts_20261120_081455.json")
+RAW_DIR = Path("data/raw")
 OUTPUT_FILE = Path("data/processed/telegram_headline_sentiment.csv")
-
 MODEL_NAME = "cardiffnlp/twitter-xlm-roberta-base-sentiment"
 
 ALIASES = {
-    "0700.HK": ["tencent", "騰訊", "腾讯"],
-    "9988.HK": ["alibaba", "阿里巴巴", "阿里"],
-    "0005.HK": ["hsbc", "滙豐", "汇丰"],
-    "1299.HK": ["aia", "友邦"],
-    "0941.HK": ["china mobile", "中國移動", "中国移动"],
+    "0700.HK": ["tencent", "騰訊", "腾讯", "0700"],
+    "9988.HK": ["alibaba", "阿里巴巴", "阿里", "9988"],
+    "0005.HK": ["hsbc", "滙豐", "汇丰", "0005"],
+    "1299.HK": ["aia", "友邦", "1299"],
+    "0941.HK": ["china mobile", "中國移動", "中国移动", "0941"],
 }
 
 
-def get_ticker(text):
-    for ticker, aliases in ALIASES.items():
-        for alias in aliases:
-            if alias.lower() in text.lower():
-                return ticker
-    return None
+def latest_input_file():
+    files = sorted(RAW_DIR.glob("telegram_posts_*.json"))
+    if not files:
+        raise FileNotFoundError(
+            "No telegram_posts_*.json file found in data/raw. "
+            "Run agents/collect_telegram.py first."
+        )
+    return files[-1]
+
+
+def extract_headlines(text):
+    rows = []
+    for line in (part.strip() for part in text.splitlines() if part.strip()):
+        lower_line = line.lower()
+        if lower_line.startswith("http") or lower_line.startswith((
+            "curated headlines", "south china", "the business", "barron's"
+        )):
+            continue
+        for ticker, aliases in ALIASES.items():
+            if any(alias.lower() in lower_line for alias in aliases):
+                rows.append({"ticker": ticker, "headline": line})
+                break
+    return rows
 
 
 def normalize_label(label):
@@ -37,64 +51,20 @@ def normalize_label(label):
     return "neutral"
 
 
-def extract_headlines(text):
-    lines = [
-        line.strip()
-        for line in text.splitlines()
-        if line.strip()
-    ]
-
-    results = []
-
-    for i, line in enumerate(lines):
-        ticker = get_ticker(line)
-
-        if not ticker:
-            continue
-
-        # Exclude URLs and generic section headings.
-        if line.startswith("http") or line.lower().startswith(
-            ("curated headlines", "south china", "the business", "barron's")
-        ):
-            continue
-
-        results.append({
-            "ticker": ticker,
-            "headline": line
-        })
-
-    return results
-
-
 def main():
-    with INPUT_FILE.open("r", encoding="utf-8") as f:
+    input_file = latest_input_file()
+    with input_file.open("r", encoding="utf-8") as f:
         records = json.load(f)
+    posts = [r for r in records if r.get("type") != "channel" and r.get("text")]
+    print("Input file:", input_file)
+    print("Individual posts:", len(posts))
 
-    posts = [
-        r for r in records
-        if r.get("type") != "channel" and r.get("text")
-    ]
-
-    model = pipeline(
-        "sentiment-analysis",
-        model=MODEL_NAME,
-        device=-1
-    )
-
+    model = pipeline("sentiment-analysis", model=MODEL_NAME, device=-1)
     rows = []
-
     for post in posts:
-        headlines = extract_headlines(post["text"])
-
-        for item in headlines:
-            prediction = model(
-                item["headline"],
-                truncation=True,
-                max_length=128
-            )[0]
-
+        for item in extract_headlines(post["text"]):
+            prediction = model(item["headline"], truncation=True, max_length=128)[0]
             label = normalize_label(prediction["label"])
-
             rows.append({
                 "ticker": item["ticker"],
                 "source": "Telegram",
@@ -104,26 +74,15 @@ def main():
                 "headline": item["headline"],
                 "model_sentiment": label,
                 "confidence": round(float(prediction["score"]), 4),
-                "sentiment_score": {
-                    "positive": 1,
-                    "negative": -1,
-                    "neutral": 0
-                }[label]
+                "sentiment_score": {"positive": 1, "negative": -1, "neutral": 0}[label],
             })
 
-    df = pd.DataFrame(rows)
-
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    df = pd.DataFrame(rows)
     df.to_csv(OUTPUT_FILE, index=False, encoding="utf-8-sig")
-
     print("\nREFINED TELEGRAM HEADLINE RESULTS")
-
-    if not df.empty:
-        print(df.to_string(index=False))
-    else:
-        print("No relevant headlines extracted.")
-
-    print("\nTotal extracted headlines:", len(df))
+    print(df.to_string(index=False) if not df.empty else "No relevant headlines extracted.")
+    print("Total extracted headlines:", len(df))
     print("Saved:", OUTPUT_FILE)
 
 
