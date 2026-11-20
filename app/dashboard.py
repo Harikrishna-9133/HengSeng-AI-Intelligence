@@ -1230,12 +1230,12 @@ elif page == "Data Coverage":
 
     coverage = pd.DataFrame({
         "Source": [
-            "LIHKG",
-            "Telegram",
-            "Exa News",
-            "Historical Prices",
+            "LIHKG — analyzed messages",
+            "Telegram — matched headline records",
+            "Exa News — analyzed articles",
+            "Historical Prices — ticker-day rows",
         ],
-        "Available Records": [
+        "Records": [
             len(lihkg),
             len(telegram),
             len(exa),
@@ -1249,17 +1249,29 @@ elif page == "Data Coverage":
         hide_index=True,
     )
 
+    sentiment_coverage = coverage[
+        coverage["Source"] != "Historical Prices — ticker-day rows"
+    ].copy()
+
     fig = px.bar(
-        coverage,
+        sentiment_coverage,
         x="Source",
-        y="Available Records",
+        y="Records",
         color="Source",
-        title="Data Collection by Source",
+        title="Social and News Records by Source",
+        text="Records",
     )
+    fig.update_layout(showlegend=False)
 
     st.plotly_chart(
         fig,
         use_container_width=True
+    )
+
+    st.metric(
+        "Historical price rows",
+        f"{len(unified):,}",
+        help="Daily ticker rows in the merged historical price and sentiment dataset.",
     )
 
     st.subheader("Stock-wise Coverage — Full Collection Window")
