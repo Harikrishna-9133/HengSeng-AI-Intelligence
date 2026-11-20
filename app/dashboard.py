@@ -695,110 +695,124 @@ elif page == "Sentiment Analysis":
 
     st.subheader("Multi-Source Sentiment Analysis")
 
-    st.subheader("🏆 Stock-wise Sentiment Ranking")
+    st.subheader("🏆 Social-only Stock Ranking (LIHKG + Telegram)")
 
-    if all_sentiment.empty:
+    social_sentiment = all_sentiment[
+        all_sentiment["source"].isin(["LIHKG", "Telegram"])
+    ].copy() if not all_sentiment.empty else pd.DataFrame()
 
-        st.warning("No usable sentiment records available.")
-
+    if social_sentiment.empty:
+        st.warning("No social sentiment records are available for ranking.")
     else:
-
-        ranking = (
-            all_sentiment.groupby("ticker")
+        social_ranking = (
+            social_sentiment.groupby("ticker")
             .agg(
                 mentions=("dashboard_sentiment", "size"),
-                positive=(
-                    "dashboard_sentiment",
-                    lambda x: (x == "positive").sum()
-                ),
-                negative=(
-                    "dashboard_sentiment",
-                    lambda x: (x == "negative").sum()
-                ),
-                neutral=(
-                    "dashboard_sentiment",
-                    lambda x: (x == "neutral").sum()
-                ),
+                positive=("dashboard_sentiment", lambda x: (x == "positive").sum()),
+                negative=("dashboard_sentiment", lambda x: (x == "negative").sum()),
+                neutral=("dashboard_sentiment", lambda x: (x == "neutral").sum()),
             )
             .reset_index()
         )
 
-        ranking["net_sentiment"] = (
-            ranking["positive"] - ranking["negative"]
+        social_ranking["net_sentiment"] = (
+            social_ranking["positive"] - social_ranking["negative"]
         )
-
-        ranking["sentiment_score"] = (
-            ranking["net_sentiment"]
-            / ranking["mentions"]
+        social_ranking["sentiment_score"] = (
+            social_ranking["net_sentiment"] / social_ranking["mentions"]
         )
-
-        ranking["company"] = ranking["ticker"].map(
-            ASSET_NAMES
+        social_ranking["direction"] = np.select(
+            [social_ranking["net_sentiment"] > 0, social_ranking["net_sentiment"] < 0],
+            ["BULLISH", "BEARISH"],
+            default="NEUTRAL",
         )
-
-        ranking["evidence_status"] = np.where(
-            ranking["mentions"] >= 10,
+        social_ranking["company"] = social_ranking["ticker"].map(ASSET_NAMES)
+        social_ranking["evidence_status"] = np.where(
+            social_ranking["mentions"] >= 10,
             "Moderate coverage",
-            "Limited coverage"
+            "Limited coverage",
         )
-
-        ranking = ranking.sort_values(
-            ["sentiment_score", "mentions"],
-            ascending=[False, False]
+        social_ranking = social_ranking.sort_values(
+            ["mentions", "sentiment_score"],
+            ascending=[False, False],
         ).reset_index(drop=True)
-
-        ranking.insert(
-            0,
-            "Rank",
-            range(1, len(ranking) + 1)
+        social_ranking.insert(0, "Rank", range(1, len(social_ranking) + 1))
+        social_ranking = social_ranking.rename(columns={
+            "ticker": "Ticker",
+            "company": "Company",
+            "mentions": "Social Mentions",
+            "positive": "Positive",
+            "negative": "Negative",
+            "neutral": "Neutral",
+            "net_sentiment": "Net Sentiment",
+            "sentiment_score": "Social Sentiment Score",
+            "direction": "Sentiment Direction",
+            "evidence_status": "Evidence Coverage",
+        })
+        st.dataframe(social_ranking, use_container_width=True, hide_index=True)
+        fig = px.bar(
+            social_ranking,
+            x="Ticker",
+            y="Social Sentiment Score",
+            color="Sentiment Direction",
+            title="Social-only Sentiment Score by HKEX Ticker",
+            hover_data=["Company", "Social Mentions", "Positive", "Negative", "Neutral"],
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        st.caption(
+            "This ranking uses LIHKG and Telegram only. A missing ticker means no matching social posts were collected; it does not mean neutral sentiment."
         )
 
-        ranking = ranking.rename(
-            columns={
-                "ticker": "Ticker",
-                "company": "Company",
-                "mentions": "Mentions",
-                "positive": "Positive",
-                "negative": "Negative",
-                "neutral": "Neutral",
-                "net_sentiment": "Net Sentiment",
-                "sentiment_score": "Sentiment Score",
-                "evidence_status": "Evidence Coverage",
-            }
-        )
+    st.divider()
+    st.subheader("Combined Sentiment Ranking (Social + Exa News)")
 
-        st.dataframe(
-            ranking,
-            use_container_width=True,
-            hide_index=True
+    if all_sentiment.empty:
+        st.warning("No usable sentiment records available.")
+    else:
+        ranking = (
+            all_sentiment.groupby("ticker")
+            .agg(
+                mentions=("dashboard_sentiment", "size"),
+                positive=("dashboard_sentiment", lambda x: (x == "positive").sum()),
+                negative=("dashboard_sentiment", lambda x: (x == "negative").sum()),
+                neutral=("dashboard_sentiment", lambda x: (x == "neutral").sum()),
+            )
+            .reset_index()
         )
-
+        ranking["net_sentiment"] = ranking["positive"] - ranking["negative"]
+        ranking["sentiment_score"] = ranking["net_sentiment"] / ranking["mentions"]
+        ranking["company"] = ranking["ticker"].map(ASSET_NAMES)
+        ranking["evidence_status"] = np.where(
+            ranking["mentions"] >= 10, "Moderate coverage", "Limited coverage"
+        )
+        ranking = ranking.sort_values(
+            ["sentiment_score", "mentions"], ascending=[False, False]
+        ).reset_index(drop=True)
+        ranking.insert(0, "Rank", range(1, len(ranking) + 1))
+        ranking = ranking.rename(columns={
+            "ticker": "Ticker",
+            "company": "Company",
+            "mentions": "Mentions",
+            "positive": "Positive",
+            "negative": "Negative",
+            "neutral": "Neutral",
+            "net_sentiment": "Net Sentiment",
+            "sentiment_score": "Sentiment Score",
+            "evidence_status": "Evidence Coverage",
+        })
+        st.dataframe(ranking, use_container_width=True, hide_index=True)
         fig = px.bar(
             ranking,
             x="Ticker",
             y="Sentiment Score",
             color="Sentiment Score",
-            title="Stock Sentiment Ranking",
-            hover_data=[
-                "Company",
-                "Mentions",
-                "Positive",
-                "Negative",
-                "Neutral"
-            ]
+            title="Combined Social and News Sentiment Score",
+            hover_data=["Company", "Mentions", "Positive", "Negative", "Neutral"],
         )
-
-        st.plotly_chart(
-            fig,
-            use_container_width=True
-        )
-
+        st.plotly_chart(fig, use_container_width=True)
         st.caption(
-            "Sentiment Score = (Positive mentions - Negative mentions) "
-            "/ Total classified mentions. This measures observed "
-            "sentiment, not predicted stock-price direction."
+            "Combined score uses LIHKG, Telegram, and Exa headlines. Sentiment score is (positive - negative) / total classified mentions; it is not predicted price direction."
         )
-
     source_option = st.selectbox(
         "Select sentiment source",
         ["All Sources", "LIHKG", "Telegram", "Exa News"]
