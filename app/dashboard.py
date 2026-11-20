@@ -354,11 +354,14 @@ if page == "Overview":
             "Unified price dataset is missing or unavailable."
         )
     else:
-        latest_close = latest_prices["Close"].sum() if "Close" in latest_prices else 0
-
         total_events = (
             latest_prices["total_sentiment_events"].sum()
             if "total_sentiment_events" in latest_prices
+            else 0
+        )
+        model_count = (
+            predictions["model"].nunique()
+            if not predictions.empty and "model" in predictions.columns
             else 0
         )
 
@@ -370,12 +373,12 @@ if page == "Overview":
         )
 
         col2.metric(
-            "Latest Combined Close",
-            f"{latest_close:,.2f}"
+            "Prediction Models",
+            int(model_count)
         )
 
         col3.metric(
-            "Sentiment Events",
+            "Latest-Session Sentiment Events",
             int(total_events)
         )
 
@@ -407,37 +410,40 @@ if page == "Overview":
             "predicted_next_close",
             "predicted_direction",
         ]
-
         columns = [
             column for column in columns
             if column in display.columns
         ]
 
+        # Format the displayed table for interpretation while keeping
+        # the original numeric values available for the chart.
+        table = display[columns].copy()
+        table = table.rename(columns={
+            "ticker": "Ticker",
+            "company": "Company",
+            "predicted_next_return": "Predicted Return",
+            "predicted_next_close": "Predicted Next Close",
+            "predicted_direction": "Direction",
+        })
+        if "Predicted Return" in table.columns:
+            table["Predicted Return"] = pd.to_numeric(
+                table["Predicted Return"], errors="coerce"
+            ).map(lambda value: f"{value * 100:+.2f}%" if pd.notna(value) else "N/A")
+        if "Predicted Next Close" in table.columns:
+            table["Predicted Next Close"] = pd.to_numeric(
+                table["Predicted Next Close"], errors="coerce"
+            ).map(lambda value: f"{value:,.2f}" if pd.notna(value) else "N/A")
+
         st.dataframe(
-            display[columns],
+            table,
             use_container_width=True,
             hide_index=True,
         )
 
         if "predicted_next_return" in display.columns:
             chart = display.copy()
-
             chart["return_percent"] = (
-                chart["predicted_next_return"] * 100
-            )
-
-            display["Predicted Return (%)"] = (
-                display["predicted_next_return"] * 100
-            ).map(lambda x: f"{x:+.2f}%")
-
-            display["predicted_next_close"] = (
-                display["predicted_next_close"]
-            ).map(lambda x: f"{x:.2f}")
-
-            display = display.rename(
-                columns={
-                    "predicted_direction": "Direction"
-                }
+                pd.to_numeric(chart["predicted_next_return"], errors="coerce") * 100
             )
 
             fig = px.bar(
